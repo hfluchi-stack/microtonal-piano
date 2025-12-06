@@ -216,12 +216,11 @@
       }
     }
 
-    // ========= 三种音色（修改点2：手风琴更“簧片感”） =========
+    // ========= 三种音色（含更“簧片感”的手风琴） =========
     function createTanhCurve(amount) {
       const n = 65536;
       const curve = new Float32Array(n);
       const k = typeof amount === 'number' ? amount : 2;
-      const deg = Math.PI / 180;
       for (let i = 0; i < n; i++) {
         const x = (i * 2) / n - 1;
         curve[i] = Math.tanh(k * x);
@@ -264,7 +263,7 @@
         lfo.stop(stopTime);
 
       } else if (instrument === 'accordion') {
-        // *** 手风琴：多振荡器 + 失真 + 带通 + 轻微颤音 ***
+        // 东欧风簧片感：多振荡器 + 失真 + 带通 + 轻微颤音
         const osc1 = audioCtx.createOscillator();
         const osc2 = audioCtx.createOscillator();
         const osc3 = audioCtx.createOscillator();
@@ -293,18 +292,18 @@
 
         const bandpass = audioCtx.createBiquadFilter();
         bandpass.type = 'bandpass';
-        bandpass.frequency.value = 750; // 突出中高频簧片噪声
+        bandpass.frequency.value = 750;
         bandpass.Q.value = 3.5;
 
         const hp = audioCtx.createBiquadFilter();
         hp.type = 'highpass';
-        hp.frequency.value = 120; // 切一点低频，让“哼哼声”更清楚
+        hp.frequency.value = 120;
 
         const tremoloGain = audioCtx.createGain();
         tremoloGain.gain.value = 1.0;
         const lfo = audioCtx.createOscillator();
         const lfoGain = audioCtx.createGain();
-        lfo.frequency.value = 4.5;     // 4~5Hz 轻微颤音
+        lfo.frequency.value = 4.5;
         lfoGain.gain.value = 0.22;
         lfo.connect(lfoGain).connect(tremoloGain.gain);
 
@@ -368,15 +367,14 @@
 
     const keyColorMemory = {};
 
-    // 修改点1：重新设计 7 个淡色底色，二/三、六/七/八差别更明显
     const octaveColorsWhite = [
-      '#e3f2fd', // 1 淡蓝
-      '#d1f2eb', // 2 淡青绿
-      '#e8f5e9', // 3 淡草绿
-      '#fff9c4', // 4 柔黄
-      '#ffe0b2', // 5 淡橙
-      '#ffd1dc', // 6 粉红
-      '#fce4ec'  // 7 玫红偏淡
+      '#e3f2fd',
+      '#d1f2eb',
+      '#e8f5e9',
+      '#fff9c4',
+      '#ffe0b2',
+      '#ffd1dc',
+      '#fce4ec'
     ];
 
     function getCurrentN() {
@@ -471,7 +469,7 @@
       }
     }
 
-    // ========= 滑奏 =========
+    // ========= 滑奏：改用 document + elementFromPoint，兼容手机 =========
     let isPointerDown = false;
     let lastPlayedKey = null;
 
@@ -493,14 +491,22 @@
       }
     }
 
-    keyboardEl.addEventListener('pointermove', (e) => {
+    // 关键修改：在整个 document 上监听 pointermove，用 elementFromPoint 找当前键
+    document.addEventListener('pointermove', (e) => {
       if (!isPointerDown) return;
       if (paintModeCheckbox.checked) return;
-      const key = e.target.closest('.key');
+
+      // 阻止页面滚动
+      if (e.cancelable) e.preventDefault();
+
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (!el) return;
+      const key = el.closest('.key');
       if (!key || key === lastPlayedKey) return;
+
       lastPlayedKey = key;
       handleKeyInteraction(key);
-    });
+    }, { passive: false });
 
     document.body.addEventListener('pointerup', () => {
       isPointerDown = false;
