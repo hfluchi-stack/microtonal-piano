@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>可变等分音阶键盘</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <style>
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .panel {
+      background: #1c1c1c;
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      margin-bottom: 10px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .row label {
+      white-space: nowrap;
+    }
+    input[type="number"], select {
+      background: #111;
+      color: #f5f5f5;
+      border-radius: 8px;
+      border: 1px solid #444;
+      padding: 4px 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="number"]:focus, select:focus {
+      border-color: #888;
+    }
+    input[type="checkbox"] {
+      transform: scale(1.1);
+      margin-right: 4px;
+    }
+    .tag {
+      background: #222;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #bbb;
+    }
+
+    #keyboard-wrapper {
+      background: linear-gradient(to bottom, #181818, #101010);
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      padding: 8px;
+    }
+    #keyboard {
+      display: flex;
+      align-items: flex-end;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 6px 2px 2px;
+      gap: 4px;
+      scrollbar-width: thin;
+    }
+    #keyboard::-webkit-scrollbar {
+      height: 4px;
+    }
+    #keyboard::-webkit-scrollbar-track {
+      background: #111;
+    }
+    #keyboard::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 2px;
+    }
+
+    .key {
+      flex: 0 0 32px; /* width */
+      height: 120px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 4px;
+      font-size: 10px;
+      box-sizing: border-box;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      transition: transform 0.06s ease, box-shadow 0.06s ease, background-color 0.15s ease, filter 0.15s ease;
+    }
+    .key.white {
+      background: #f5f5f5;
+      color: #222;
+      box-shadow: 0 3px 4px rgba(0,0,0,0.3);
+    }
+    .key.black {
+      background: #111;
+      color: #f5f5f5;
+      box-shadow: 0 3px 4px rgba(0,0,0,0.6);
+    }
+    .key.base {
+      border: 2px solid #ffcc33;
+    }
+    .key.oct-root {
+      border-style: dashed;
+    }
+    .key.active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      filter: brightness(1.1);
+    }
+    .key-label {
+      pointer-events: none;
+    }
+
+    .small-note {
+      font-size: 8px;
+      opacity: 0.7;
+      display: block;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 2px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>可变等分音阶键盘</h1>
+
+  <div class="panel">
+    <div class="row">
+      <label for="divisions">八度等分数：</label>
+      <input id="divisions" type="number" min="2" max="20" value="12">
+      <span class="tag">2–20，含 12 平均律</span>
+    </div>
+    <div class="row">
+      <label for="instrument">音色：</label>
+      <select id="instrument">
+        <option value="piano">钢琴（模拟）</option>
+        <option value="violin">小提琴（模拟）</option>
+        <option value="accordion">手风琴（模拟）</option>
+      </select>
+      <label>
+        <input type="checkbox" id="fade" checked>
+        渐弱 / 衰减
+      </label>
+      <label>
+        <input type="checkbox" id="paint-mode">
+        键盘涂色模式
+      </label>
+    </div>
+    <div class="hint">
+      标准音为 <b>1-4 = 440 Hz</b>，1-3 = 220 Hz，1-5 = 880 Hz，范围从 1-1 到 1-7。<br>
+      关闭“键盘涂色模式”：点键 = 弹音；打开则点键 = 黑白切换。
+    </div>
+  </div>
+
+  <div id="keyboard-wrapper">
+    <div id="keyboard"></div>
+  </div>
+
+  <script>
+    // =========================
+    // 频率与命名：核心数学部分
+    // =========================
+    // 音阶：以 440 Hz 为 1-4，对应“全局步长” s = 0。
+    // 一个八度等分为 N 份，每走 1 步，频率乘以 2^(1/N)。
+    // 因此：
+    //   freq(s, N) = 440 * 2^(s / N)
+    //
+    // 名字 i-j 的含义：
+    //   - i : 该八度内的第 i 份（1..N）
+    //   - j : “八度编号”，使得 1-3 = 220 Hz, 1-4 = 440 Hz, 1-5 = 880 Hz ...
+    // 映射关系：
+    //   令 s = 0 对应 1-4，则：
+    //     s ∈ [0, N-1] 对应 j = 4
+    //     s ∈ [N, 2N-1] 对应 j = 5
+    //     s ∈ [-N, -1] 对应 j = 3
+    //   一般：
+    //     octaveOffset = floor(s / N)
+    //     j = 4 + octaveOffset
+    //   八度内的序号：
+    //     i = ((s % N) + N) % N + 1   // 保证 1..N，包含负数情况
+    //
+    // 范围设置：
+    //   j 从 1 到 7，即 1-1 到 1-7。
+    //   j=1 比 1-4 低 3 个八度 => s = -3N
+    //   j=7 比 1-4 高 3 个八度 => s = +3N
+    //   所以 s ∈ [-3N, 3N]，共 6N + 1 个键。
+
+    function stepToNote(s, N) {
+      const octaveOffset = Math.floor(s / N);
+      const octaveNumber = 4 + octaveOffset; // j
+      const stepIndex = ((s % N) + N) % N + 1; // i in [1, N]
+      const freq = 440 * Math.pow(2, s / N);
+      return {
+        label: stepIndex + "-" + octaveNumber,
+        stepIndex,
+        octaveNumber,
+        freq
+      };
+    }
+
+    // =========================
+    // Web Audio：声音部分
+    // =========================
+    let audioCtx = null;
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function getEnvelope(instrument, useFade) {
+      // 返回一个简化的 ADSR 包络参数
+      // 单位：秒
+      if (instrument === 'violin') {
+        // 模拟拉弦：稍慢起音 + 持续
+        return useFade
+          ? { attack: 0.08, decay: 0.25, sustain: 0.7, release: 0.8, total: 1.4 }
+          : { attack: 0.05, decay: 0.1, sustain: 0.9, release: 0.2, total: 0.7 };
+      } else if (instrument === 'accordion') {
+        // 类似风箱：相对平稳
+        return useFade
+          ? { attack: 0.05, decay: 0.15, sustain: 0.8, release: 0.6, total: 1.2 }
+          : { attack: 0.03, decay: 0.07, sustain: 1.0, release: 0.15, total: 0.6 };
+      } else {
+        // piano：瞬时起音 + 快速衰减
+        return useFade
+          ? { attack: 0.01, decay: 0.25, sustain: 0.0, release: 0.4, total: 0.8 }
+          : { attack: 0.01, decay: 0.1, sustain: 0.0, release: 0.1, total: 0.3 };
+      }
+    }
+
+    function playFrequency(freq, instrument, useFade) {
+      ensureAudioContext();
+
+      const env = getEnvelope(instrument, useFade);
+      const now = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      // 简单用不同波形模拟不同音色
+      if (instrument === 'violin') {
+        osc.type = 'sawtooth';
+      } else if (instrument === 'accordion') {
+        osc.type = 'square';
+      } else {
+        // piano
+        osc.type = 'sine';
+      }
+
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(0, now);
+      // Attack
+      gain.gain.linearRampToValueAtTime(1.0, now + env.attack);
+      // Decay -> sustain
+      gain.gain.linearRampToValueAtTime(env.sustain, now + env.attack + env.decay);
+      // Release 至 0
+      gain.gain.linearRampToValueAtTime(0.0, now + env.total);
+
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + env.total + 0.05);
+    }
+
+    // =========================
+    // 键盘绘制与交互
+    // =========================
+
+    const keyboardEl = document.getElementById('keyboard');
+    const divisionsInput = document.getElementById('divisions');
+    const instrumentSelect = document.getElementById('instrument');
+    const fadeCheckbox = document.getElementById('fade');
+    const paintModeCheckbox = document.getElementById('paint-mode');
+
+    // 为每个 N 单独记忆键是否为黑键：
+    // keyColorMemory[N][s] = 'black' or 'white'
+    const keyColorMemory = {};
+
+    function getCurrentN() {
+      let n = parseInt(divisionsInput.value, 10);
+      if (isNaN(n) || n < 2) n = 2;
+      if (n > 20) n = 20;
+      divisionsInput.value = n;
+      return n;
+    }
+
+    function getKeyColor(N, s) {
+      if (!keyColorMemory[N]) {
+        keyColorMemory[N] = {};
+      }
+      const store = keyColorMemory[N];
+      if (!store.hasOwnProperty(s)) {
+        // 初始默认设为白键
+        store[s] = 'white';
+      }
+      return store[s];
+    }
+
+    function toggleKeyColor(N, s) {
+      if (!keyColorMemory[N]) {
+        keyColorMemory[N] = {};
+      }
+      const store = keyColorMemory[N];
+      const cur = store[s] || 'white';
+      store[s] = (cur === 'white') ? 'black' : 'white';
+      return store[s];
+    }
+
+    function rebuildKeyboard() {
+      const N = getCurrentN();
+      keyboardEl.innerHTML = '';
+
+      const minS = -3 * N;
+      const maxS = 3 * N;
+
+      for (let s = minS; s <= maxS; s++) {
+        const info = stepToNote(s, N);
+        const { label, stepIndex, octaveNumber, freq } = info;
+
+        const key = document.createElement('div');
+        key.classList.add('key');
+
+        const color = getKeyColor(N, s);
+        key.classList.add(color);
+
+        // 标准音 1-4 高亮描边
+        if (label === '1-4') {
+          key.classList.add('base');
+        }
+        // 每个八度的 1-j（如 1-3,1-4,...）加虚线边框，方便看结构
+        if (stepIndex === 1) {
+          key.classList.add('oct-root');
+        }
+
+        key.dataset.s = s;
+        key.dataset.freq = freq;
+        key.dataset.label = label;
+
+        const labelSpan = document.createElement('div');
+        labelSpan.className = 'key-label';
+        labelSpan.innerHTML = `
+          <span>${label}</span>
+          <span class="small-note">${freq.toFixed(1)}Hz</span>
+        `;
+        key.appendChild(labelSpan);
+
+        // 交互：点击键
+        key.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          ensureAudioContext();
+
+          const curN = getCurrentN();
+          const sVal = parseInt(key.dataset.s, 10);
+
+          if (paintModeCheckbox.checked) {
+            // 涂色模式：切换黑 / 白
+            const newColor = toggleKeyColor(curN, sVal);
+            key.classList.remove('white', 'black');
+            key.classList.add(newColor);
+          } else {
+            // 弹音模式
+            const fVal = parseFloat(key.dataset.freq);
+            const instrument = instrumentSelect.value;
+            const useFade = fadeCheckbox.checked;
+            key.classList.add('active');
+            playFrequency(fVal, instrument, useFade);
+            // 简单视觉反馈恢复
+            setTimeout(() => key.classList.remove('active'), 120);
+          }
+        });
+
+        keyboardEl.appendChild(key);
+      }
+    }
+
+    // 控件变化时重建键盘
+    divisionsInput.addEventListener('change', rebuildKeyboard);
+    divisionsInput.addEventListener('blur', rebuildKeyboard);
+
+    // 用户第一次点击页面时，解锁音频
+    document.body.addEventListener('pointerdown', () => {
+      ensureAudioContext();
+    }, { once: true });
+
+    // 初始构建键盘
+    rebuildKeyboard();
+  </script>
+</body>
+</html>
