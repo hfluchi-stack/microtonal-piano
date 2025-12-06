@@ -5,12 +5,13 @@
   <title>可变等分音阶键盘</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 12px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: #111;
-      color: #f5f5f5;
+      background: #fafafa;
+      color: #222;
     }
     h1 {
       font-size: 18px;
@@ -19,11 +20,12 @@
       font-weight: 600;
     }
     .panel {
-      background: #1c1c1c;
+      background: #ffffff;
       border-radius: 12px;
       padding: 10px 12px;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
       margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
     }
     .row {
       display: flex;
@@ -33,109 +35,106 @@
       margin-bottom: 6px;
       font-size: 13px;
     }
-    .row label {
+    .row label { white-space: nowrap; }
+
+    .slider-container {
+      position: relative;
+      flex: 1 1 150px;
+      padding-top: 8px;
+      padding-bottom: 12px;
+    }
+    input[type="range"] {
+      width: 100%;
+      margin: 0;
+    }
+    #slider-bubble {
+      position: absolute;
+      top: 22px;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #333;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #f1f1f1;
+      border: 1px solid #ddd;
+      pointer-events: none;
       white-space: nowrap;
     }
-    input[type="number"], select {
-      background: #111;
-      color: #f5f5f5;
+
+    select {
+      background: #ffffff;
+      color: #222;
       border-radius: 8px;
-      border: 1px solid #444;
+      border: 1px solid #ccc;
       padding: 4px 8px;
       font-size: 13px;
       outline: none;
     }
-    input[type="number"]:focus, select:focus {
-      border-color: #888;
-    }
+    select:focus { border-color: #888; }
     input[type="checkbox"] {
       transform: scale(1.1);
       margin-right: 4px;
     }
     .tag {
-      background: #222;
+      background: #f1f1f1;
       border-radius: 999px;
       padding: 2px 8px;
       font-size: 11px;
-      color: #bbb;
+      color: #666;
+      white-space: nowrap;
+      border: 1px solid #e0e0e0;
     }
 
     #keyboard-wrapper {
-      background: linear-gradient(to bottom, #181818, #101010);
+      background: #ffffff;
       border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
       padding: 8px;
+      border: 1px solid #e0e0e0;
     }
     #keyboard {
-      display: flex;
-      align-items: flex-end;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 6px 2px 2px;
+      display: grid;
       gap: 4px;
-      scrollbar-width: thin;
-    }
-    #keyboard::-webkit-scrollbar {
-      height: 4px;
-    }
-    #keyboard::-webkit-scrollbar-track {
-      background: #111;
-    }
-    #keyboard::-webkit-scrollbar-thumb {
-      background: #444;
-      border-radius: 2px;
+      grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
     }
 
     .key {
-      flex: 0 0 32px; /* width */
-      height: 120px;
+      height: 64px;
       border-radius: 8px;
-      border: 1px solid #555;
+      border: 1px solid #bdbdbd;
       display: flex;
       align-items: flex-end;
       justify-content: center;
       padding-bottom: 4px;
-      font-size: 10px;
-      box-sizing: border-box;
+      font-size: 9px;
       cursor: pointer;
       user-select: none;
-      touch-action: manipulation;
-      transition: transform 0.06s ease, box-shadow 0.06s ease, background-color 0.15s ease, filter 0.15s ease;
-    }
-    .key.white {
-      background: #f5f5f5;
-      color: #222;
-      box-shadow: 0 3px 4px rgba(0,0,0,0.3);
-    }
-    .key.black {
-      background: #111;
-      color: #f5f5f5;
-      box-shadow: 0 3px 4px rgba(0,0,0,0.6);
+      touch-action: none;
+      transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.15s ease, background-color 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      position: relative;
     }
     .key.base {
-      border: 2px solid #ffcc33;
-    }
-    .key.oct-root {
-      border-style: dashed;
+      border: 2px solid #ffb300;
     }
     .key.active {
       transform: translateY(2px);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.8);
-      filter: brightness(1.1);
+      box-shadow: 0 0 2px rgba(0,0,0,0.5);
+      filter: brightness(1.05);
     }
     .key-label {
       pointer-events: none;
+      text-align: center;
+      line-height: 1.1;
     }
-
     .small-note {
       font-size: 8px;
       opacity: 0.7;
       display: block;
     }
-
     .hint {
       font-size: 11px;
-      color: #aaa;
+      color: #777;
       margin-top: 2px;
       text-align: center;
     }
@@ -147,8 +146,11 @@
   <div class="panel">
     <div class="row">
       <label for="divisions">八度等分数：</label>
-      <input id="divisions" type="number" min="2" max="20" value="12">
-      <span class="tag">2–20，含 12 平均律</span>
+      <div class="slider-container">
+        <input id="divisions" type="range" min="1" max="20" value="12">
+        <span id="slider-bubble">12 等分</span>
+      </div>
+      <span class="tag">1–20，含 12 平均律，标准音 1-4 = 440 Hz</span>
     </div>
     <div class="row">
       <label for="instrument">音色：</label>
@@ -167,8 +169,7 @@
       </label>
     </div>
     <div class="hint">
-      标准音为 <b>1-4 = 440 Hz</b>，1-3 = 220 Hz，1-5 = 880 Hz，范围从 1-1 到 1-7。<br>
-      关闭“键盘涂色模式”：点键 = 弹音；打开则点键 = 黑白切换。
+      音阶范围从 <b>1-1</b> 到 <b>1-7</b>。勾选“键盘涂色模式”可自定义哪些键为黑键。
     </div>
   </div>
 
@@ -177,238 +178,359 @@
   </div>
 
   <script>
-    // =========================
-    // 频率与命名：核心数学部分
-    // =========================
-    // 音阶：以 440 Hz 为 1-4，对应“全局步长” s = 0。
-    // 一个八度等分为 N 份，每走 1 步，频率乘以 2^(1/N)。
-    // 因此：
-    //   freq(s, N) = 440 * 2^(s / N)
-    //
-    // 名字 i-j 的含义：
-    //   - i : 该八度内的第 i 份（1..N）
-    //   - j : “八度编号”，使得 1-3 = 220 Hz, 1-4 = 440 Hz, 1-5 = 880 Hz ...
-    // 映射关系：
-    //   令 s = 0 对应 1-4，则：
-    //     s ∈ [0, N-1] 对应 j = 4
-    //     s ∈ [N, 2N-1] 对应 j = 5
-    //     s ∈ [-N, -1] 对应 j = 3
-    //   一般：
-    //     octaveOffset = floor(s / N)
-    //     j = 4 + octaveOffset
-    //   八度内的序号：
-    //     i = ((s % N) + N) % N + 1   // 保证 1..N，包含负数情况
-    //
-    // 范围设置：
-    //   j 从 1 到 7，即 1-1 到 1-7。
-    //   j=1 比 1-4 低 3 个八度 => s = -3N
-    //   j=7 比 1-4 高 3 个八度 => s = +3N
-    //   所以 s ∈ [-3N, 3N]，共 6N + 1 个键。
-
+    // ========= 频率与命名 =========
     function stepToNote(s, N) {
       const octaveOffset = Math.floor(s / N);
-      const octaveNumber = 4 + octaveOffset; // j
-      const stepIndex = ((s % N) + N) % N + 1; // i in [1, N]
+      const octaveNumber = 4 + octaveOffset;
+      const stepIndex = ((s % N) + N) % N + 1;
       const freq = 440 * Math.pow(2, s / N);
-      return {
-        label: stepIndex + "-" + octaveNumber,
-        stepIndex,
-        octaveNumber,
-        freq
-      };
+      return { label: stepIndex + "-" + octaveNumber, stepIndex, octaveNumber, freq };
     }
 
-    // =========================
-    // Web Audio：声音部分
-    // =========================
+    // ========= Web Audio =========
     let audioCtx = null;
-
     function ensureAudioContext() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
     function getEnvelope(instrument, useFade) {
-      // 返回一个简化的 ADSR 包络参数
-      // 单位：秒
-      if (instrument === 'violin') {
-        // 模拟拉弦：稍慢起音 + 持续
-        return useFade
-          ? { attack: 0.08, decay: 0.25, sustain: 0.7, release: 0.8, total: 1.4 }
-          : { attack: 0.05, decay: 0.1, sustain: 0.9, release: 0.2, total: 0.7 };
-      } else if (instrument === 'accordion') {
-        // 类似风箱：相对平稳
-        return useFade
-          ? { attack: 0.05, decay: 0.15, sustain: 0.8, release: 0.6, total: 1.2 }
-          : { attack: 0.03, decay: 0.07, sustain: 1.0, release: 0.15, total: 0.6 };
+      if (!useFade) {
+        if (instrument === 'violin') {
+          return { attack: 0.08, decay: 0.25, sustain: 0.7, release: 0.8, total: 1.4 };
+        } else if (instrument === 'accordion') {
+          return { attack: 0.05, decay: 0.15, sustain: 0.8, release: 0.6, total: 1.2 };
+        } else {
+          return { attack: 0.01, decay: 0.25, sustain: 0.0, release: 0.4, total: 0.8 };
+        }
       } else {
-        // piano：瞬时起音 + 快速衰减
-        return useFade
-          ? { attack: 0.01, decay: 0.25, sustain: 0.0, release: 0.4, total: 0.8 }
-          : { attack: 0.01, decay: 0.1, sustain: 0.0, release: 0.1, total: 0.3 };
+        if (instrument === 'violin') {
+          return { attack: 0.10, decay: 0.40, sustain: 0.8, release: 1.2, total: 2.5 };
+        } else if (instrument === 'accordion') {
+          return { attack: 0.05, decay: 0.35, sustain: 0.9, release: 1.3, total: 2.7 };
+        } else {
+          return { attack: 0.01, decay: 0.50, sustain: 0.2, release: 1.3, total: 2.2 };
+        }
       }
     }
+
+    // ========= 三种音色（修改点2：手风琴更“簧片感”） =========
+    function createTanhCurve(amount) {
+      const n = 65536;
+      const curve = new Float32Array(n);
+      const k = typeof amount === 'number' ? amount : 2;
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n; i++) {
+        const x = (i * 2) / n - 1;
+        curve[i] = Math.tanh(k * x);
+      }
+      return curve;
+    }
+    const accordionWaveshaperCurve = createTanhCurve(3.5);
 
     function playFrequency(freq, instrument, useFade) {
       ensureAudioContext();
-
       const env = getEnvelope(instrument, useFade);
       const now = audioCtx.currentTime;
 
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const envGain = audioCtx.createGain();
+      envGain.gain.cancelScheduledValues(now);
+      envGain.gain.setValueAtTime(0, now);
+      envGain.gain.linearRampToValueAtTime(1.0, now + env.attack);
+      envGain.gain.linearRampToValueAtTime(env.sustain, now + env.attack + env.decay);
+      envGain.gain.linearRampToValueAtTime(0.0, now + env.total);
+      envGain.connect(audioCtx.destination);
 
-      // 简单用不同波形模拟不同音色
+      const stopTime = now + env.total + 0.1;
+
       if (instrument === 'violin') {
+        const osc = audioCtx.createOscillator();
         osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now);
+
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 5;
+        lfoGain.gain.value = freq * 0.004;
+        lfo.connect(lfoGain).connect(osc.frequency);
+
+        osc.connect(envGain);
+        osc.start(now);
+        lfo.start(now);
+
+        osc.stop(stopTime);
+        lfo.stop(stopTime);
+
       } else if (instrument === 'accordion') {
-        osc.type = 'square';
+        // *** 手风琴：多振荡器 + 失真 + 带通 + 轻微颤音 ***
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const osc3 = audioCtx.createOscillator();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        osc3.type = 'sawtooth';
+
+        osc1.frequency.setValueAtTime(freq * 0.98, now);
+        osc2.frequency.setValueAtTime(freq, now);
+        osc3.frequency.setValueAtTime(freq * 1.02, now);
+
+        const gain1 = audioCtx.createGain();
+        const gain2 = audioCtx.createGain();
+        const gain3 = audioCtx.createGain();
+        gain1.gain.value = 0.5;
+        gain2.gain.value = 0.6;
+        gain3.gain.value = 0.4;
+
+        const mixGain = audioCtx.createGain();
+        mixGain.gain.value = 0.9;
+
+        const shaper = audioCtx.createWaveShaper();
+        shaper.curve = accordionWaveshaperCurve;
+        shaper.oversample = '4x';
+
+        const bandpass = audioCtx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.value = 750; // 突出中高频簧片噪声
+        bandpass.Q.value = 3.5;
+
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 120; // 切一点低频，让“哼哼声”更清楚
+
+        const tremoloGain = audioCtx.createGain();
+        tremoloGain.gain.value = 1.0;
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 4.5;     // 4~5Hz 轻微颤音
+        lfoGain.gain.value = 0.22;
+        lfo.connect(lfoGain).connect(tremoloGain.gain);
+
+        osc1.connect(gain1).connect(mixGain);
+        osc2.connect(gain2).connect(mixGain);
+        osc3.connect(gain3).connect(mixGain);
+
+        mixGain.connect(shaper).connect(bandpass).connect(hp).connect(tremoloGain).connect(envGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc3.start(now);
+        lfo.start(now);
+
+        osc1.stop(stopTime);
+        osc2.stop(stopTime);
+        osc3.stop(stopTime);
+        lfo.stop(stopTime);
+
       } else {
-        // piano
-        osc.type = 'sine';
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const oscH = audioCtx.createOscillator();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        oscH.type = 'triangle';
+
+        osc1.frequency.setValueAtTime(freq * 0.997, now);
+        osc2.frequency.setValueAtTime(freq * 1.003, now);
+        oscH.frequency.setValueAtTime(freq * 2, now);
+
+        const gain1 = audioCtx.createGain();
+        const gain2 = audioCtx.createGain();
+        const gainH = audioCtx.createGain();
+        gain1.gain.value = 0.6;
+        gain2.gain.value = 0.6;
+        gainH.gain.value = 0.3;
+
+        osc1.connect(gain1).connect(envGain);
+        osc2.connect(gain2).connect(envGain);
+        oscH.connect(gainH).connect(envGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        oscH.start(now);
+
+        osc1.stop(stopTime);
+        osc2.stop(stopTime);
+        oscH.stop(stopTime);
       }
-
-      osc.frequency.setValueAtTime(freq, now);
-
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(0, now);
-      // Attack
-      gain.gain.linearRampToValueAtTime(1.0, now + env.attack);
-      // Decay -> sustain
-      gain.gain.linearRampToValueAtTime(env.sustain, now + env.attack + env.decay);
-      // Release 至 0
-      gain.gain.linearRampToValueAtTime(0.0, now + env.total);
-
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + env.total + 0.05);
     }
 
-    // =========================
-    // 键盘绘制与交互
-    // =========================
-
+    // ========= 键盘 UI =========
     const keyboardEl = document.getElementById('keyboard');
     const divisionsInput = document.getElementById('divisions');
+    const sliderBubble = document.getElementById('slider-bubble');
     const instrumentSelect = document.getElementById('instrument');
     const fadeCheckbox = document.getElementById('fade');
     const paintModeCheckbox = document.getElementById('paint-mode');
 
-    // 为每个 N 单独记忆键是否为黑键：
-    // keyColorMemory[N][s] = 'black' or 'white'
     const keyColorMemory = {};
+
+    // 修改点1：重新设计 7 个淡色底色，二/三、六/七/八差别更明显
+    const octaveColorsWhite = [
+      '#e3f2fd', // 1 淡蓝
+      '#d1f2eb', // 2 淡青绿
+      '#e8f5e9', // 3 淡草绿
+      '#fff9c4', // 4 柔黄
+      '#ffe0b2', // 5 淡橙
+      '#ffd1dc', // 6 粉红
+      '#fce4ec'  // 7 玫红偏淡
+    ];
 
     function getCurrentN() {
       let n = parseInt(divisionsInput.value, 10);
-      if (isNaN(n) || n < 2) n = 2;
+      if (isNaN(n) || n < 1) n = 1;
       if (n > 20) n = 20;
       divisionsInput.value = n;
+      updateSliderBubble();
       return n;
     }
 
+    function getOctavesPerRow(N) {
+      if (N >= 7) return 1;
+      if (N >= 5) return 2;
+      if (N >= 3) return 3;
+      return 4;
+    }
+
     function getKeyColor(N, s) {
-      if (!keyColorMemory[N]) {
-        keyColorMemory[N] = {};
-      }
+      if (!keyColorMemory[N]) keyColorMemory[N] = {};
       const store = keyColorMemory[N];
-      if (!store.hasOwnProperty(s)) {
-        // 初始默认设为白键
-        store[s] = 'white';
-      }
+      if (!store.hasOwnProperty(s)) store[s] = 'white';
       return store[s];
     }
 
     function toggleKeyColor(N, s) {
-      if (!keyColorMemory[N]) {
-        keyColorMemory[N] = {};
-      }
+      if (!keyColorMemory[N]) keyColorMemory[N] = {};
       const store = keyColorMemory[N];
       const cur = store[s] || 'white';
       store[s] = (cur === 'white') ? 'black' : 'white';
       return store[s];
     }
 
+    function applyVisualStyle(key, colorType, octaveNumber) {
+      const idx = Math.max(1, Math.min(7, octaveNumber)) - 1;
+      let bg, fg;
+      if (colorType === 'black') {
+        bg = '#111111';
+        fg = '#f5f5f5';
+      } else {
+        bg = octaveColorsWhite[idx];
+        fg = '#222222';
+      }
+      key.style.backgroundColor = bg;
+      key.style.color = fg;
+    }
+
     function rebuildKeyboard() {
       const N = getCurrentN();
       keyboardEl.innerHTML = '';
 
-      const minS = -3 * N;
-      const maxS = 3 * N;
+      const octavesPerRow = getOctavesPerRow(N);
+      const cols = N * octavesPerRow;
+      keyboardEl.style.setProperty('--cols', cols);
 
-      for (let s = minS; s <= maxS; s++) {
-        const info = stepToNote(s, N);
-        const { label, stepIndex, octaveNumber, freq } = info;
+      for (let oct = 1; oct <= 7; oct++) {
+        for (let step = 0; step < N; step++) {
+          const s = (oct - 4) * N + step;
+          const info = stepToNote(s, N);
+          const { label, stepIndex, octaveNumber, freq } = info;
 
-        const key = document.createElement('div');
-        key.classList.add('key');
+          const key = document.createElement('div');
+          key.classList.add('key');
 
-        const color = getKeyColor(N, s);
-        key.classList.add(color);
+          const color = getKeyColor(N, s);
+          applyVisualStyle(key, color, octaveNumber);
 
-        // 标准音 1-4 高亮描边
-        if (label === '1-4') {
-          key.classList.add('base');
+          if (label === '1-4') key.classList.add('base');
+
+          key.dataset.s = s;
+          key.dataset.freq = freq;
+          key.dataset.label = label;
+          key.dataset.octave = octaveNumber;
+
+          const labelSpan = document.createElement('div');
+          labelSpan.className = 'key-label';
+          labelSpan.innerHTML = `
+            <span>${label}</span>
+            <span class="small-note">${freq.toFixed(1)}Hz</span>
+          `;
+          key.appendChild(labelSpan);
+
+          key.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            isPointerDown = true;
+            lastPlayedKey = key;
+            handleKeyInteraction(key);
+          });
+
+          keyboardEl.appendChild(key);
         }
-        // 每个八度的 1-j（如 1-3,1-4,...）加虚线边框，方便看结构
-        if (stepIndex === 1) {
-          key.classList.add('oct-root');
-        }
-
-        key.dataset.s = s;
-        key.dataset.freq = freq;
-        key.dataset.label = label;
-
-        const labelSpan = document.createElement('div');
-        labelSpan.className = 'key-label';
-        labelSpan.innerHTML = `
-          <span>${label}</span>
-          <span class="small-note">${freq.toFixed(1)}Hz</span>
-        `;
-        key.appendChild(labelSpan);
-
-        // 交互：点击键
-        key.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          ensureAudioContext();
-
-          const curN = getCurrentN();
-          const sVal = parseInt(key.dataset.s, 10);
-
-          if (paintModeCheckbox.checked) {
-            // 涂色模式：切换黑 / 白
-            const newColor = toggleKeyColor(curN, sVal);
-            key.classList.remove('white', 'black');
-            key.classList.add(newColor);
-          } else {
-            // 弹音模式
-            const fVal = parseFloat(key.dataset.freq);
-            const instrument = instrumentSelect.value;
-            const useFade = fadeCheckbox.checked;
-            key.classList.add('active');
-            playFrequency(fVal, instrument, useFade);
-            // 简单视觉反馈恢复
-            setTimeout(() => key.classList.remove('active'), 120);
-          }
-        });
-
-        keyboardEl.appendChild(key);
       }
     }
 
-    // 控件变化时重建键盘
-    divisionsInput.addEventListener('change', rebuildKeyboard);
-    divisionsInput.addEventListener('blur', rebuildKeyboard);
+    // ========= 滑奏 =========
+    let isPointerDown = false;
+    let lastPlayedKey = null;
 
-    // 用户第一次点击页面时，解锁音频
+    function handleKeyInteraction(key) {
+      ensureAudioContext();
+      const curN = getCurrentN();
+      const sVal = parseInt(key.dataset.s, 10);
+
+      if (paintModeCheckbox.checked) {
+        const newColor = toggleKeyColor(curN, sVal);
+        applyVisualStyle(key, newColor, parseInt(key.dataset.octave, 10));
+      } else {
+        const fVal = parseFloat(key.dataset.freq);
+        const instrument = instrumentSelect.value;
+        const useFade = fadeCheckbox.checked;
+        key.classList.add('active');
+        playFrequency(fVal, instrument, useFade);
+        setTimeout(() => key.classList.remove('active'), 120);
+      }
+    }
+
+    keyboardEl.addEventListener('pointermove', (e) => {
+      if (!isPointerDown) return;
+      if (paintModeCheckbox.checked) return;
+      const key = e.target.closest('.key');
+      if (!key || key === lastPlayedKey) return;
+      lastPlayedKey = key;
+      handleKeyInteraction(key);
+    });
+
+    document.body.addEventListener('pointerup', () => {
+      isPointerDown = false;
+      lastPlayedKey = null;
+    });
+    document.body.addEventListener('pointercancel', () => {
+      isPointerDown = false;
+      lastPlayedKey = null;
+    });
+
+    // ========= 滑块气泡 =========
+    function updateSliderBubble() {
+      const min = parseInt(divisionsInput.min, 10);
+      const max = parseInt(divisionsInput.max, 10);
+      const val = parseInt(divisionsInput.value, 10);
+      const ratio = (val - min) / (max - min);
+      sliderBubble.textContent = `${val} 等分`;
+      sliderBubble.style.left = `${ratio * 100}%`;
+    }
+
+    divisionsInput.addEventListener('input', () => {
+      updateSliderBubble();
+      rebuildKeyboard();
+    });
+
     document.body.addEventListener('pointerdown', () => {
       ensureAudioContext();
     }, { once: true });
 
-    // 初始构建键盘
+    updateSliderBubble();
     rebuildKeyboard();
   </script>
 </body>
